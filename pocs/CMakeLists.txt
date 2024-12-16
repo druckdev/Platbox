@@ -59,6 +59,7 @@ add_executable(AcerSmmCalloutPoc Acer/SmmCallout.cpp)
 add_executable(SecureCoreAcer SecureCoreAcer/DirectSpiAccess.cpp)
 
 add_executable(AmdSinkClose  AmdSinkclose/sinkclose.cpp)
+add_executable(SquirrelTest SquirrelTest/squirreltest.cpp)
 
 
 
@@ -69,3 +70,4 @@ target_link_libraries(AcerSmmCalloutPoc platbox_lib)
 target_link_libraries(SecureCoreAcer platbox_lib)
 
 target_link_libraries(AmdSinkClose sinkclose_lib platbox_lib -static)
+target_link_libraries(SquirrelTest platbox_lib)
