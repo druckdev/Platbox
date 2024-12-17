@@ -17,13 +17,13 @@ extern "C" {
 	void _core0_shell();
 }
 
-#define DUMP_TSEG 1
-//#define SQUIRREL_DEBUG      1
-// #define INSTALL_FCH_SMI_HANDLER 1
+// #define DUMP_TSEG 1
+#define SQUIRREL_DEBUG      1
+#define INSTALL_FCH_SMI_HANDLER 1
 // #define INSTALL_ROOT_SMI_HANDLER 1
 
 
-#define SQUIRREL_BAR        0xD0800000
+#define SQUIRREL_BAR        0xD0500000
 
 /// Used for calculating sizes of the assembly functions
 /// (shellcode defined in sinkclose.s)
